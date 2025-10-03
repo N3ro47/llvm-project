@@ -881,6 +881,10 @@ Parser::ParseExternalDeclaration(ParsedAttributes &Attrs,
   case tok::annot_pragma_attribute:
     HandlePragmaAttribute();
     return nullptr;
+  case::tok::kw_defer:
+    Diag(Tok, diag::err_defer_outside_function);
+    SkipUntil(tok::semi);
+    return nullptr;
   case tok::semi:
     // Either a C++11 empty-declaration or attribute-declaration.
     SingleDecl =

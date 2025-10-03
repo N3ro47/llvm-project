@@ -295,6 +295,7 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //                   extension.
 //   KEYZOS - This is a keyword in C/C++ on z/OS
 //
+KEYWORD(defer                       , KEYALL)
 KEYWORD(auto                        , KEYALL)
 KEYWORD(break                       , KEYALL)
 KEYWORD(case                        , KEYALL)

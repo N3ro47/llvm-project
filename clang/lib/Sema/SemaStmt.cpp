@@ -16,6 +16,7 @@
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/DynamicRecursiveASTVisitor.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/ExprCXX.h"
@@ -66,6 +67,15 @@ StmtResult Sema::ActOnExprStmt(ExprResult FE, bool DiscardedValue) {
 StmtResult Sema::ActOnExprStmtError() {
   DiscardCleanupsInEvaluationContext();
   return StmtError();
+}
+
+StmtResult Sema::ActOnDeferStmt(SourceLocation DeferLoc, Stmt *Body) {
+  // Check if we are inside a function
+  if (!getCurFunctionDecl()) {
+    Diag(DeferLoc, diag::err_defer_outside_function);
+    return StmtError();
+  }
+  return new (Context) DeferStmt(DeferLoc, Body);
 }
 
 StmtResult Sema::ActOnNullStmt(SourceLocation SemiLoc,
@@ -3219,6 +3229,12 @@ StmtResult Sema::ActOnGotoStmt(SourceLocation GotoLoc,
                                LabelDecl *TheDecl) {
   setFunctionHasBranchIntoScope();
 
+  if (InDeferStmtCount) {
+    Diag(GotoLoc, diag::err_defer_prohibits_goto);
+
+    return StmtError();
+  }
+
   // If this goto is in a compute construct scope, we need to make sure we check
   // gotos in/out.
   if (getCurScope()->isInOpenACCComputeConstructScope())
@@ -3271,6 +3287,10 @@ static void CheckJumpOutOfSEHFinally(Sema &S, SourceLocation Loc,
 
 StmtResult
 Sema::ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope) {
+  if (InDeferStmtCount) {
+    Diag(ContinueLoc, diag::err_defer_prohibits_continue);
+    return StmtError();
+  }
   Scope *S = CurScope->getContinueParent();
   if (!S) {
     // C99 6.8.6.2p1: A break shall appear only in or as a loop body.
@@ -3298,6 +3318,10 @@ Sema::ActOnContinueStmt(SourceLocation ContinueLoc, Scope *CurScope) {
 
 StmtResult
 Sema::ActOnBreakStmt(SourceLocation BreakLoc, Scope *CurScope) {
+  if (InDeferStmtCount) {
+    Diag(BreakLoc, diag::err_defer_prohibits_break);
+    return StmtError();
+  }
   Scope *S = CurScope->getBreakParent();
   if (!S) {
     // C99 6.8.6.3p1: A break shall appear only in or as a switch/loop body.
@@ -3829,6 +3853,11 @@ Sema::ActOnReturnStmt(SourceLocation ReturnLoc, Expr *RetValExp,
                       Scope *CurScope) {
   // Correct typos, in case the containing function returns 'auto' and
   // RetValExp should determine the deduced type.
+
+  if (InDeferStmtCount) {
+    Diag(ReturnLoc, diag::err_defer_prohibits_return);
+    return StmtError();
+  }
   ExprResult RetVal = CorrectDelayedTyposInExpr(
       RetValExp, nullptr, /*RecoverUncorrectedTypos=*/true);
   if (RetVal.isInvalid())

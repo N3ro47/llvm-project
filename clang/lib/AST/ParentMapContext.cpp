@@ -13,6 +13,7 @@
 
 #include "clang/AST/ParentMapContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/TemplateBase.h"

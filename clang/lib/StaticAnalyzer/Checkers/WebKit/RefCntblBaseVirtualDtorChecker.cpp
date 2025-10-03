@@ -11,6 +11,7 @@
 #include "PtrTypesSemantics.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/DynamicRecursiveASTVisitor.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"

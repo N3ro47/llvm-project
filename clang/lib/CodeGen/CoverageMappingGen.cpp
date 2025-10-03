@@ -13,6 +13,7 @@
 #include "CoverageMappingGen.h"
 #include "CodeGenFunction.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Lex/Lexer.h"
 #include "llvm/ADT/DenseSet.h"

@@ -14,6 +14,7 @@
 #include "clang/AST/ASTDumper.h"
 #include "clang/AST/ASTConcept.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/DeclLookups.h"
 #include "clang/AST/JSONNodeDumper.h"
 #include "clang/Basic/SourceManager.h"

@@ -16,6 +16,7 @@
 #include "PrimType.h"
 #include "Program.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/DeferStmt.h"
 
 using namespace clang;
 using namespace clang::interp;

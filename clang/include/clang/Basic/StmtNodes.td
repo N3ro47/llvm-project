@@ -12,6 +12,7 @@ def CompoundStmt : StmtNode<Stmt>;
 def IfStmt : StmtNode<Stmt>;
 def SwitchStmt : StmtNode<Stmt>;
 def WhileStmt : StmtNode<Stmt>;
+def DeferStmt : StmtNode<Stmt>;
 def DoStmt : StmtNode<Stmt>;
 def ForStmt : StmtNode<Stmt>;
 def GotoStmt : StmtNode<Stmt>;

@@ -224,6 +224,8 @@ def ext_expected_semi_decl_list : ExtWarn<
   "expected ';' at end of declaration list">;
 def err_expected_member_name_or_semi : Error<
   "expected member name or ';' after declaration specifiers">;
+def err_expected_lbrace : Error<"expected '{'">;
+def err_expected_semi_after : Error<"expected ';' after %0">;
 def err_function_declared_typedef : Error<
   "function definition declared 'typedef'">;
 def err_at_defs_cxx : Error<"@defs is not supported in Objective-C++">;

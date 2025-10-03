@@ -14,6 +14,7 @@
 #include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/AST/StmtObjC.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Attr.h"

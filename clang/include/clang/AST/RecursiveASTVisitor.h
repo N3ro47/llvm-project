@@ -23,6 +23,7 @@
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprConcepts.h"
@@ -2444,6 +2445,7 @@ DEF_TRAVERSE_STMT(CXXTryStmt, {})
 DEF_TRAVERSE_STMT(CaseStmt, {})
 DEF_TRAVERSE_STMT(CompoundStmt, {})
 DEF_TRAVERSE_STMT(ContinueStmt, {})
+DEF_TRAVERSE_STMT(DeferStmt, {})
 DEF_TRAVERSE_STMT(DefaultStmt, {})
 DEF_TRAVERSE_STMT(DoStmt, {})
 DEF_TRAVERSE_STMT(ForStmt, {})

@@ -22,6 +22,7 @@
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/DependenceFlags.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
@@ -333,6 +334,12 @@ void ASTStmtReader::VisitContinueStmt(ContinueStmt *S) {
 void ASTStmtReader::VisitBreakStmt(BreakStmt *S) {
   VisitStmt(S);
   S->setBreakLoc(readSourceLocation());
+}
+
+void ASTStmtReader::VisitDeferStmt(DeferStmt *S) {
+  VisitStmt(S);
+  S->setDeferLoc(readSourceLocation());
+  S->setBody(cast_or_null<Stmt>(Record.readSubStmt()));
 }
 
 void ASTStmtReader::VisitReturnStmt(ReturnStmt *S) {
@@ -3071,6 +3078,10 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = WhileStmt::CreateEmpty(
           Context,
           /* HasVar=*/Record[ASTStmtReader::NumStmtFields]);
+      break;
+
+    case STMT_DEFER:
+      S = new (Context) DeferStmt(Empty);
       break;
 
     case STMT_DO:

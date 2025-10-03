@@ -18,6 +18,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprConcepts.h"
@@ -1463,6 +1464,14 @@ public:
                            Expr *Cond, SourceLocation RParenLoc) {
     return getSema().ActOnDoStmt(DoLoc, Body, WhileLoc, LParenLoc,
                                  Cond, RParenLoc);
+  }
+
+  /// Build a new "defer" statement.
+  ///
+  /// By default, performs semantic analysis to build the new statement.
+  /// Subclasses may override this routine to provide different behavior.
+  StmtResult RebuildDeferStmt(SourceLocation DeferLoc, Stmt *Body) {
+    return getSema().ActOnDeferStmt(DeferLoc, Body);
   }
 
   /// Build a new for statement.
@@ -8064,6 +8073,21 @@ TreeTransform<Derived>::TransformCompoundStmt(CompoundStmt *S,
                                           S->getRBracLoc(),
                                           IsStmtExpr);
 }
+
+template<typename Derived>
+StmtResult
+TreeTransform<Derived>::TransformDeferStmt(DeferStmt *S) {
+  StmtResult Body = getDerived().TransformStmt(S->getBody());
+  if (Body.isInvalid())
+    return StmtError();
+
+  if (!getDerived().AlwaysRebuild() && Body.get() == S->getBody())
+    return S;
+
+  return getDerived().RebuildDeferStmt(S->getDeferLoc(), Body.get());
+}
+
+
 
 template<typename Derived>
 StmtResult

@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/PrettyDeclStackTrace.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/Basic/Attributes.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/Basic/TargetInfo.h"
@@ -59,6 +60,7 @@ StmtResult Parser::ParseStatement(SourceLocation *TrailingElseLoc,
 ///
 ///       statement:
 ///         labeled-statement
+/// We simply call back into the CodeGenFunction to emit the body.
 ///         compound-statement
 ///         expression-statement
 ///         selection-statement
@@ -328,6 +330,8 @@ Retry:
 
   case tok::kw_while:               // C99 6.8.5.1: while-statement
     return ParseWhileStatement(TrailingElseLoc);
+  case tok::kw_defer:
+    return ParseDeferStatement();
   case tok::kw_do:                  // C99 6.8.5.2: do-statement
     Res = ParseDoStatement();
     SemiError = "do/while";
@@ -1909,6 +1913,31 @@ StmtResult Parser::ParseWhileStatement(SourceLocation *TrailingElseLoc) {
 
   return Actions.ActOnWhileStmt(WhileLoc, LParen, Cond, RParen, Body.get());
 }
+
+/// Parse a defer statement.
+///
+///	'defer' compound-statement ';'
+///
+StmtResult Parser::ParseDeferStatement() {
+	assert(Tok.is(tok::kw_defer) && "Not a defer stmt!");
+	SourceLocation DeferLoc = ConsumeToken(); 
+
+	if (Tok.isNot(tok::l_brace)) {
+		Diag(Tok, diag::err_expected_lbrace);
+		return StmtError();
+	}
+
+	Sema::DeferStmtScope DeferScope(Actions);
+
+	StmtResult Body(ParseCompoundStatement());
+
+	if (Body.isInvalid()) return StmtError();
+
+	ExpectAndConsume(tok::semi, diag::err_expected_semi_after, "'defer' body");
+
+	return Actions.ActOnDeferStmt(DeferLoc, Body.get());
+}
+
 
 /// ParseDoStatement
 ///       do-statement: [C99 6.8.5.2]

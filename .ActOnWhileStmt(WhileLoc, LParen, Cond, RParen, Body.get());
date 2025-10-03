@@ -1,0 +1,626 @@
+[1mdiff --git a/clang/include/clang/AST/DeferStmt.h b/clang/include/clang/AST/DeferStmt.h[m
+[1mindex dcaa67d86..0ae9d6de7 100644[m
+[1m--- a/clang/include/clang/AST/DeferStmt.h[m
+[1m+++ b/clang/include/clang/AST/DeferStmt.h[m
+[36m@@ -6,12 +6,12 @@[m
+ namespace clang {[m
+ [m
+ class DeferStmt final : public Stmt {[m
+[31m-  SourceLocation  DeferLoc;[m
+[31m-  Stmt *Body[m
+[32m+[m[32m  SourceLocation DeferLoc;[m
+[32m+[m[32m  Stmt *Body;[m
+ [m
+[31m-  public:[m
+[32m+[m[32mpublic:[m
+   DeferStmt(SourceLocation Dl, Stmt *Body)[m
+[31m-	  : Stmt(DeferStmtClass), DeferLoc(DL), Body(Body) {}[m
+[32m+[m[32m      : Stmt(DeferStmtClass), DeferLoc(Dl), Body(Body) {}[m
+ [m
+   const Stmt *getBody() const { return Body; }[m
+   Stmt *getBody() { return Body; }[m
+[36m@@ -19,23 +19,26 @@[m [mclass DeferStmt final : public Stmt {[m
+   SourceLocation getDeferLoc() const { return DeferLoc; }[m
+ [m
+   static bool classof(const Stmt *T) {[m
+[31m-	return T->getStmtClass() == DeferStmtClass;[m
+[32m+[m[32m    return T->getStmtClass() == Stmt::DeferStmtClass;[m
+   }[m
+ [m
+[31m-  //iterators for ast traversal[m
+   child_range children() { return child_range(&Body, &Body + 1); }[m
+   const_child_range children() const {[m
+[31m-	const Stmt *const *P = reinterpret_cast<const Stmt *const *>(&Body);[m
+[31m-	return const_child_range(P, P + 1);[m
+[32m+[m[32m    return const_child_range(const_cast<Stmt**>(&Body), const_cast<Stmt**>(&Body + 1));[m
+   }[m
+ [m
+[31m-  SourceRange getSourceRange() const override {[m
+[31m-	if (!Body) return SourceRange(DeferLoc);[m
+[31m-	return SourceRange(DeferLoc, Body->getEndLoc());[m
+[32m+[m[32m  SourceLocation getBeginLoc() const { return DeferLoc; }[m
+[32m+[m[32m  SourceLocation getEndLoc() const {[m
+[32m+[m[32m    if (Body)[m
+[32m+[m[32m      return Body->getEndLoc();[m
+[32m+[m[32m    return DeferLoc;[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  SourceRange getSourceRange() const {[m
+[32m+[m[32m    return SourceRange(getBeginLoc(), getEndLoc());[m
+   }[m
+ };[m
+ [m
+[31m-}[m
+[32m+[m[32m} // namespace clang[m
+ [m
+[31m-#endif // LLVM_CLANG_AST_DEFERSTMT_H [m
+[31m- [m
+[32m+[m[32m#endif // LLVM_CLANG_AST_DEFERSTMT_H[m
+[1mdiff --git a/clang/include/clang/AST/TextNodeDumper.h b/clang/include/clang/AST/TextNodeDumper.h[m
+[1mindex 4aaae48ba..892190db8 100644[m
+[1m--- a/clang/include/clang/AST/TextNodeDumper.h[m
+[1m+++ b/clang/include/clang/AST/TextNodeDumper.h[m
+[36m@@ -23,6 +23,7 @@[m
+ #include "clang/AST/ExprCXX.h"[m
+ #include "clang/AST/StmtVisitor.h"[m
+ #include "clang/AST/TemplateArgumentVisitor.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Type.h"[m
+ #include "clang/AST/TypeLocVisitor.h"[m
+ #include "clang/AST/TypeVisitor.h"[m
+[36m@@ -258,6 +259,7 @@[m [mpublic:[m
+   void VisitSwitchStmt(const SwitchStmt *Node);[m
+   void VisitWhileStmt(const WhileStmt *Node);[m
+   void VisitLabelStmt(const LabelStmt *Node);[m
+[32m+[m[32m  void VisitDeferStmt(const DeferStmt *Node);[m
+   void VisitGotoStmt(const GotoStmt *Node);[m
+   void VisitCaseStmt(const CaseStmt *Node);[m
+   void VisitReturnStmt(const ReturnStmt *Node);[m
+[1mdiff --git a/clang/include/clang/ASTMatchers/ASTMatchers.h b/clang/include/clang/ASTMatchers/ASTMatchers.h[m
+[1mindex 239fcba4e..ff439ce1f 100644[m
+[1m--- a/clang/include/clang/ASTMatchers/ASTMatchers.h[m
+[1m+++ b/clang/include/clang/ASTMatchers/ASTMatchers.h[m
+[36m@@ -47,6 +47,7 @@[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/ASTTypeTraits.h"[m
+ #include "clang/AST/Attr.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/CXXInheritance.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+[1mdiff --git a/clang/include/clang/Basic/DiagnosticParseKinds.td b/clang/include/clang/Basic/DiagnosticParseKinds.td[m
+[1mindex 3309f59a9..9a0b264ed 100644[m
+[1m--- a/clang/include/clang/Basic/DiagnosticParseKinds.td[m
+[1m+++ b/clang/include/clang/Basic/DiagnosticParseKinds.td[m
+[36m@@ -224,6 +224,8 @@[m [mdef ext_expected_semi_decl_list : ExtWarn<[m
+   "expected ';' at end of declaration list">;[m
+ def err_expected_member_name_or_semi : Error<[m
+   "expected member name or ';' after declaration specifiers">;[m
+[32m+[m[32mdef err_expected_lbrace : Error<"expected '{'">;[m
+[32m+[m[32mdef err_expected_semi_after : Error<"expected ';' after %0">;[m
+ def err_function_declared_typedef : Error<[m
+   "function definition declared 'typedef'">;[m
+ def err_at_defs_cxx : Error<"@defs is not supported in Objective-C++">;[m
+[1mdiff --git a/clang/include/clang/Basic/StmtNodes.td b/clang/include/clang/Basic/StmtNodes.td[m
+[1mindex 53fc77bbb..1e13255e7 100644[m
+[1m--- a/clang/include/clang/Basic/StmtNodes.td[m
+[1m+++ b/clang/include/clang/Basic/StmtNodes.td[m
+[36m@@ -12,6 +12,7 @@[m [mdef CompoundStmt : StmtNode<Stmt>;[m
+ def IfStmt : StmtNode<Stmt>;[m
+ def SwitchStmt : StmtNode<Stmt>;[m
+ def WhileStmt : StmtNode<Stmt>;[m
+[32m+[m[32mdef DeferStmt : StmtNode<Stmt>;[m
+ def DoStmt : StmtNode<Stmt>;[m
+ def ForStmt : StmtNode<Stmt>;[m
+ def GotoStmt : StmtNode<Stmt>;[m
+[1mdiff --git a/clang/include/clang/Basic/TokenKinds.def b/clang/include/clang/Basic/TokenKinds.def[m
+[1mindex 8902a20b0..16ce3c0fa 100644[m
+[1m--- a/clang/include/clang/Basic/TokenKinds.def[m
+[1m+++ b/clang/include/clang/Basic/TokenKinds.def[m
+[36m@@ -295,6 +295,7 @@[m [mPUNCTUATOR(greatergreatergreater, ">>>")[m
+ //                   extension.[m
+ //   KEYZOS - This is a keyword in C/C++ on z/OS[m
+ //[m
+[32m+[m[32mKEYWORD(defer                       , KEYALL)[m
+ KEYWORD(auto                        , KEYALL)[m
+ KEYWORD(break                       , KEYALL)[m
+ KEYWORD(case                        , KEYALL)[m
+[1mdiff --git a/clang/include/clang/Parse/Parser.h b/clang/include/clang/Parse/Parser.h[m
+[1mindex e99d2cf2e..278edf022 100644[m
+[1m--- a/clang/include/clang/Parse/Parser.h[m
+[1m+++ b/clang/include/clang/Parse/Parser.h[m
+[36m@@ -2202,6 +2202,7 @@[m [mprivate:[m
+   StmtResult ParseIfStatement(SourceLocation *TrailingElseLoc);[m
+   StmtResult ParseSwitchStatement(SourceLocation *TrailingElseLoc);[m
+   StmtResult ParseWhileStatement(SourceLocation *TrailingElseLoc);[m
+[32m+[m[32m  StmtResult ParseDeferStatement();[m
+   StmtResult ParseDoStatement();[m
+   StmtResult ParseForStatement(SourceLocation *TrailingElseLoc);[m
+   StmtResult ParseGotoStatement();[m
+[1mdiff --git a/clang/lib/AST/ASTDumper.cpp b/clang/lib/AST/ASTDumper.cpp[m
+[1mindex 5e4487e06..7e946d5b1 100644[m
+[1m--- a/clang/lib/AST/ASTDumper.cpp[m
+[1m+++ b/clang/lib/AST/ASTDumper.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/ASTDumper.h"[m
+ #include "clang/AST/ASTConcept.h"[m
+ #include "clang/AST/ASTContext.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclLookups.h"[m
+ #include "clang/AST/JSONNodeDumper.h"[m
+ #include "clang/Basic/SourceManager.h"[m
+[1mdiff --git a/clang/lib/AST/ASTImporter.cpp b/clang/lib/AST/ASTImporter.cpp[m
+[1mindex 13e7f9323..eb1cf867e 100644[m
+[1m--- a/clang/lib/AST/ASTImporter.cpp[m
+[1m+++ b/clang/lib/AST/ASTImporter.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/ASTImporter.h"[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/ASTDiagnostic.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/ASTImporterSharedState.h"[m
+ #include "clang/AST/ASTLambda.h"[m
+ #include "clang/AST/ASTStructuralEquivalence.h"[m
+[1mdiff --git a/clang/lib/AST/ASTImporterLookupTable.cpp b/clang/lib/AST/ASTImporterLookupTable.cpp[m
+[1mindex 4ed3198d7..356b256f9 100644[m
+[1m--- a/clang/lib/AST/ASTImporterLookupTable.cpp[m
+[1m+++ b/clang/lib/AST/ASTImporterLookupTable.cpp[m
+[36m@@ -11,6 +11,7 @@[m
+ //[m
+ //===----------------------------------------------------------------------===//[m
+ [m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/ASTImporterLookupTable.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/RecursiveASTVisitor.h"[m
+[1mdiff --git a/clang/lib/AST/ASTStructuralEquivalence.cpp b/clang/lib/AST/ASTStructuralEquivalence.cpp[m
+[1mindex eaf074839..b5b13976a 100644[m
+[1m--- a/clang/lib/AST/ASTStructuralEquivalence.cpp[m
+[1m+++ b/clang/lib/AST/ASTStructuralEquivalence.cpp[m
+[36m@@ -62,6 +62,7 @@[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/ASTDiagnostic.h"[m
+ #include "clang/AST/Decl.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclBase.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclFriend.h"[m
+[1mdiff --git a/clang/lib/AST/ByteCode/Compiler.cpp b/clang/lib/AST/ByteCode/Compiler.cpp[m
+[1mindex 66ab27bdd..3e9527211 100644[m
+[1m--- a/clang/lib/AST/ByteCode/Compiler.cpp[m
+[1m+++ b/clang/lib/AST/ByteCode/Compiler.cpp[m
+[36m@@ -16,6 +16,7 @@[m
+ #include "PrimType.h"[m
+ #include "Program.h"[m
+ #include "clang/AST/Attr.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ [m
+ using namespace clang;[m
+ using namespace clang::interp;[m
+[1mdiff --git a/clang/lib/AST/DynamicRecursiveASTVisitor.cpp b/clang/lib/AST/DynamicRecursiveASTVisitor.cpp[m
+[1mindex 8cfabd9f3..a0bcd9a31 100644[m
+[1m--- a/clang/lib/AST/DynamicRecursiveASTVisitor.cpp[m
+[1m+++ b/clang/lib/AST/DynamicRecursiveASTVisitor.cpp[m
+[36m@@ -11,6 +11,7 @@[m
+ //[m
+ //===----------------------------------------------------------------------===//[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/RecursiveASTVisitor.h"[m
+ [m
+ using namespace clang;[m
+[1mdiff --git a/clang/lib/AST/Expr.cpp b/clang/lib/AST/Expr.cpp[m
+[1mindex a5b7ef8c4..c1b4c4f3b 100644[m
+[1m--- a/clang/lib/AST/Expr.cpp[m
+[1m+++ b/clang/lib/AST/Expr.cpp[m
+[36m@@ -17,6 +17,7 @@[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/ComputeDependence.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+ #include "clang/AST/DependenceFlags.h"[m
+[1mdiff --git a/clang/lib/AST/ExprConstant.cpp b/clang/lib/AST/ExprConstant.cpp[m
+[1mindex 209b26912..68fcbd1c4 100644[m
+[1m--- a/clang/lib/AST/ExprConstant.cpp[m
+[1m+++ b/clang/lib/AST/ExprConstant.cpp[m
+[36m@@ -39,6 +39,7 @@[m
+ #include "clang/AST/APValue.h"[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/ASTLambda.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/CXXInheritance.h"[m
+ #include "clang/AST/CharUnits.h"[m
+[1mdiff --git a/clang/lib/AST/JSONNodeDumper.cpp b/clang/lib/AST/JSONNodeDumper.cpp[m
+[1mindex 4ab0e7cb5..904ef27fb 100644[m
+[1m--- a/clang/lib/AST/JSONNodeDumper.cpp[m
+[1m+++ b/clang/lib/AST/JSONNodeDumper.cpp[m
+[36m@@ -1,5 +1,6 @@[m
+ #include "clang/AST/JSONNodeDumper.h"[m
+ #include "clang/AST/Type.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/Basic/SourceManager.h"[m
+ #include "clang/Basic/Specifiers.h"[m
+ #include "clang/Lex/Lexer.h"[m
+[1mdiff --git a/clang/lib/AST/ParentMapContext.cpp b/clang/lib/AST/ParentMapContext.cpp[m
+[1mindex d8dd352c4..7bbacf6cf 100644[m
+[1m--- a/clang/lib/AST/ParentMapContext.cpp[m
+[1m+++ b/clang/lib/AST/ParentMapContext.cpp[m
+[36m@@ -13,6 +13,7 @@[m
+ [m
+ #include "clang/AST/ParentMapContext.h"[m
+ #include "clang/AST/Decl.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/RecursiveASTVisitor.h"[m
+ #include "clang/AST/TemplateBase.h"[m
+[1mdiff --git a/clang/lib/AST/Stmt.cpp b/clang/lib/AST/Stmt.cpp[m
+[1mindex 685c00d0c..fc6f59d7b 100644[m
+[1m--- a/clang/lib/AST/Stmt.cpp[m
+[1m+++ b/clang/lib/AST/Stmt.cpp[m
+[36m@@ -11,6 +11,7 @@[m
+ //===----------------------------------------------------------------------===//[m
+ [m
+ #include "clang/AST/Stmt.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/ASTDiagnostic.h"[m
+ #include "clang/AST/Attr.h"[m
+[1mdiff --git a/clang/lib/AST/StmtPrinter.cpp b/clang/lib/AST/StmtPrinter.cpp[m
+[1mindex 9299d4cb4..0e0d81b8f 100644[m
+[1m--- a/clang/lib/AST/StmtPrinter.cpp[m
+[1m+++ b/clang/lib/AST/StmtPrinter.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/Decl.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclBase.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+[36m@@ -382,6 +383,12 @@[m [mvoid StmtPrinter::VisitWhileStmt(WhileStmt *Node) {[m
+   PrintStmt(Node->getBody());[m
+ }[m
+ [m
+[32m+[m[32mvoid StmtPrinter::VisitDeferStmt(DeferStmt *Node) {[m
+[32m+[m[32m  Indent() << "defer ";[m
+[32m+[m[32m  PrintStmt(Node->getBody());[m
+[32m+[m[32m  OS << ";";[m
+[32m+[m[32m}[m
+[32m+[m
+ void StmtPrinter::VisitDoStmt(DoStmt *Node) {[m
+   Indent() << "do ";[m
+   if (auto *CS = dyn_cast<CompoundStmt>(Node->getBody())) {[m
+[1mdiff --git a/clang/lib/AST/StmtProfile.cpp b/clang/lib/AST/StmtProfile.cpp[m
+[1mindex 5d1f370ca..b00656122 100644[m
+[1m--- a/clang/lib/AST/StmtProfile.cpp[m
+[1m+++ b/clang/lib/AST/StmtProfile.cpp[m
+[36m@@ -12,6 +12,7 @@[m
+ //===----------------------------------------------------------------------===//[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+ #include "clang/AST/Expr.h"[m
+[1mdiff --git a/clang/lib/AST/TextNodeDumper.cpp b/clang/lib/AST/TextNodeDumper.cpp[m
+[1mindex 7f5a825b6..1241cc14c 100644[m
+[1m--- a/clang/lib/AST/TextNodeDumper.cpp[m
+[1m+++ b/clang/lib/AST/TextNodeDumper.cpp[m
+[36m@@ -1391,6 +1391,10 @@[m [mvoid TextNodeDumper::VisitSwitchStmt(const SwitchStmt *Node) {[m
+     OS << " has_var";[m
+ }[m
+ [m
+[32m+[m[32mvoid TextNodeDumper::VisitDeferStmt(const DeferStmt *Node) {[m
+[32m+[m[32m  VisitStmt(Node);[m
+[32m+[m[32m}[m
+[32m+[m
+ void TextNodeDumper::VisitWhileStmt(const WhileStmt *Node) {[m
+   if (Node->hasVarStorage())[m
+     OS << " has_var";[m
+[1mdiff --git a/clang/lib/Analysis/AnalysisDeclContext.cpp b/clang/lib/Analysis/AnalysisDeclContext.cpp[m
+[1mindex d3a1a9937..4d1d1593d 100644[m
+[1m--- a/clang/lib/Analysis/AnalysisDeclContext.cpp[m
+[1m+++ b/clang/lib/Analysis/AnalysisDeclContext.cpp[m
+[36m@@ -18,6 +18,7 @@[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/LambdaCapture.h"[m
+ #include "clang/AST/ParentMap.h"[m
+[1mdiff --git a/clang/lib/Analysis/CFG.cpp b/clang/lib/Analysis/CFG.cpp[m
+[1mindex 304bbb2b4..67d6491a2 100644[m
+[1m--- a/clang/lib/Analysis/CFG.cpp[m
+[1m+++ b/clang/lib/Analysis/CFG.cpp[m
+[36m@@ -18,6 +18,7 @@[m
+ #include "clang/AST/DeclBase.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclGroup.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+ #include "clang/AST/OperationKinds.h"[m
+[1mdiff --git a/clang/lib/Analysis/CallGraph.cpp b/clang/lib/Analysis/CallGraph.cpp[m
+[1mindex d9da74d40..014321601 100644[m
+[1m--- a/clang/lib/Analysis/CallGraph.cpp[m
+[1m+++ b/clang/lib/Analysis/CallGraph.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclBase.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprObjC.h"[m
+ #include "clang/AST/Stmt.h"[m
+[1mdiff --git a/clang/lib/Analysis/CalledOnceCheck.cpp b/clang/lib/Analysis/CalledOnceCheck.cpp[m
+[1mindex 1554eab18..733c882a0 100644[m
+[1m--- a/clang/lib/Analysis/CalledOnceCheck.cpp[m
+[1m+++ b/clang/lib/Analysis/CalledOnceCheck.cpp[m
+[36m@@ -11,6 +11,7 @@[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclBase.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprObjC.h"[m
+[1mdiff --git a/clang/lib/Analysis/CloneDetection.cpp b/clang/lib/Analysis/CloneDetection.cpp[m
+[1mindex 65ac4ad6a..8e2f117c3 100644[m
+[1m--- a/clang/lib/Analysis/CloneDetection.cpp[m
+[1m+++ b/clang/lib/Analysis/CloneDetection.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/DataCollection.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/Basic/SourceManager.h"[m
+ #include "llvm/Support/MD5.h"[m
+ #include "llvm/Support/Path.h"[m
+[1mdiff --git a/clang/lib/Analysis/Consumed.cpp b/clang/lib/Analysis/Consumed.cpp[m
+[1mindex 3eb7e5abf..35f6b2400 100644[m
+[1m--- a/clang/lib/Analysis/Consumed.cpp[m
+[1m+++ b/clang/lib/Analysis/Consumed.cpp[m
+[36m@@ -15,6 +15,7 @@[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+ #include "clang/AST/Stmt.h"[m
+[1mdiff --git a/clang/lib/Analysis/LiveVariables.cpp b/clang/lib/Analysis/LiveVariables.cpp[m
+[1mindex 5fb5ee767..067819c05 100644[m
+[1m--- a/clang/lib/Analysis/LiveVariables.cpp[m
+[1m+++ b/clang/lib/Analysis/LiveVariables.cpp[m
+[36m@@ -13,6 +13,7 @@[m
+ #include "clang/Analysis/Analyses/LiveVariables.h"[m
+ #include "clang/AST/Stmt.h"[m
+ #include "clang/AST/StmtVisitor.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/Analysis/AnalysisDeclContext.h"[m
+ #include "clang/Analysis/CFG.h"[m
+ #include "clang/Analysis/FlowSensitive/DataflowWorklist.h"[m
+[1mdiff --git a/clang/lib/Analysis/ThreadSafety.cpp b/clang/lib/Analysis/ThreadSafety.cpp[m
+[1mindex bfaf1a0e7..5b8266469 100644[m
+[1m--- a/clang/lib/Analysis/ThreadSafety.cpp[m
+[1m+++ b/clang/lib/Analysis/ThreadSafety.cpp[m
+[36m@@ -19,6 +19,7 @@[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclGroup.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+ #include "clang/AST/OperationKinds.h"[m
+[1mdiff --git a/clang/lib/Analysis/UninitializedValues.cpp b/clang/lib/Analysis/UninitializedValues.cpp[m
+[1mindex bf2f73061..5a1bab100 100644[m
+[1m--- a/clang/lib/Analysis/UninitializedValues.cpp[m
+[1m+++ b/clang/lib/Analysis/UninitializedValues.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/Attr.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclBase.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/OperationKinds.h"[m
+ #include "clang/AST/Stmt.h"[m
+[1mdiff --git a/clang/lib/Parse/ParseStmt.cpp b/clang/lib/Parse/ParseStmt.cpp[m
+[1mindex cd4504630..b7b7402de 100644[m
+[1m--- a/clang/lib/Parse/ParseStmt.cpp[m
+[1m+++ b/clang/lib/Parse/ParseStmt.cpp[m
+[36m@@ -12,6 +12,7 @@[m
+ //===----------------------------------------------------------------------===//[m
+ [m
+ #include "clang/AST/PrettyDeclStackTrace.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/Basic/Attributes.h"[m
+ #include "clang/Basic/PrettyStackTrace.h"[m
+ #include "clang/Basic/TargetInfo.h"[m
+[36m@@ -328,6 +329,8 @@[m [mRetry:[m
+ [m
+   case tok::kw_while:               // C99 6.8.5.1: while-statement[m
+     return ParseWhileStatement(TrailingElseLoc);[m
+[32m+[m[32m  case tok::kw_defer:[m
+[32m+[m[32m    return ParseDeferStatement();[m
+   case tok::kw_do:                  // C99 6.8.5.2: do-statement[m
+     Res = ParseDoStatement();[m
+     SemiError = "do/while";[m
+[36m@@ -1910,6 +1913,30 @@[m [mStmtResult Parser::ParseWhileStatement(SourceLocation *TrailingElseLoc) {[m
+   return Actions.ActOnWhileStmt(WhileLoc, LParen, Cond, RParen, Body.get());[m
+ }[m
+ [m
+[32m+[m[32m/// Parse a defer statement.[m
+[32m+[m[32m///[m
+[32m+[m[32m///	'defer' compound-statement ';'[m
+[32m+[m[32m///[m
+[32m+[m[32mStmtResult Parser::ParseDeferStatement() {[m
+[32m+[m	[32massert(Tok.is(tok::kw_defer) && "Not a defer stmt!");[m
+[32m+[m	[32mSourceLocation DeferLoc = ConsumeToken();[m[41m [m
+[32m+[m
+[32m+[m	[32mif (Tok.isNot(tok::l_brace)) {[m
+[32m+[m		[32mDiag(Tok, diag::err_expected_lbrace);[m
+[32m+[m		[32mreturn StmtError();[m
+[32m+[m	[32m}[m
+[32m+[m
+[32m+[m	[32mStmtResult Body(ParseCompoundStatement());[m
+[32m+[m
+[32m+[m	[32mif (Body.isInvalid()) return StmtError();[m
+[32m+[m
+[32m+[m	[32mExpectAndConsume(tok::semi, diag::err_expected_semi_after, "'defer' body");[m
+[32m+[m
+[32m+[m	[32mreturn new (Actions.getASTContext()) DeferStmt(DeferLoc, Body.get());[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m
+[32m+[m
+ /// ParseDoStatement[m
+ ///       do-statement: [C99 6.8.5.2][m
+ ///         'do' statement 'while' '(' expression ')' ';'[m
+[1mdiff --git a/clang/lib/Sema/AnalysisBasedWarnings.cpp b/clang/lib/Sema/AnalysisBasedWarnings.cpp[m
+[1mindex 589869d01..98ae78959 100644[m
+[1m--- a/clang/lib/Sema/AnalysisBasedWarnings.cpp[m
+[1m+++ b/clang/lib/Sema/AnalysisBasedWarnings.cpp[m
+[36m@@ -15,6 +15,7 @@[m
+ #include "clang/Sema/AnalysisBasedWarnings.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+[1mdiff --git a/clang/lib/Sema/Sema.cpp b/clang/lib/Sema/Sema.cpp[m
+[1mindex e0eac690e..bb95b3262 100644[m
+[1m--- a/clang/lib/Sema/Sema.cpp[m
+[1m+++ b/clang/lib/Sema/Sema.cpp[m
+[36m@@ -16,6 +16,7 @@[m
+ #include "clang/AST/ASTDiagnostic.h"[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclFriend.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/Expr.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaChecking.cpp b/clang/lib/Sema/SemaChecking.cpp[m
+[1mindex e440f6052..9911fe045 100644[m
+[1m--- a/clang/lib/Sema/SemaChecking.cpp[m
+[1m+++ b/clang/lib/Sema/SemaChecking.cpp[m
+[36m@@ -22,6 +22,7 @@[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DeclarationName.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaDecl.cpp b/clang/lib/Sema/SemaDecl.cpp[m
+[1mindex 41d5f9f2f..cc094edb9 100644[m
+[1m--- a/clang/lib/Sema/SemaDecl.cpp[m
+[1m+++ b/clang/lib/Sema/SemaDecl.cpp[m
+[36m@@ -20,6 +20,7 @@[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaDeclCXX.cpp b/clang/lib/Sema/SemaDeclCXX.cpp[m
+[1mindex 85de46c9a..0986dccb9 100644[m
+[1m--- a/clang/lib/Sema/SemaDeclCXX.cpp[m
+[1m+++ b/clang/lib/Sema/SemaDeclCXX.cpp[m
+[36m@@ -18,6 +18,7 @@[m
+ #include "clang/AST/ComparisonCategories.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+ #include "clang/AST/Expr.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaExpr.cpp b/clang/lib/Sema/SemaExpr.cpp[m
+[1mindex 23d0f9532..e210e4871 100644[m
+[1m--- a/clang/lib/Sema/SemaExpr.cpp[m
+[1m+++ b/clang/lib/Sema/SemaExpr.cpp[m
+[36m@@ -21,6 +21,7 @@[m
+ #include "clang/AST/Decl.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+ #include "clang/AST/DeclTemplate.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+ #include "clang/AST/Expr.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaExprObjC.cpp b/clang/lib/Sema/SemaExprObjC.cpp[m
+[1mindex 18d9d38ee..8f1bbd1dd 100644[m
+[1m--- a/clang/lib/Sema/SemaExprObjC.cpp[m
+[1m+++ b/clang/lib/Sema/SemaExprObjC.cpp[m
+[36m@@ -13,6 +13,7 @@[m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/Availability.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/ExprObjC.h"[m
+ #include "clang/AST/StmtVisitor.h"[m
+ #include "clang/AST/TypeLoc.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaObjC.cpp b/clang/lib/Sema/SemaObjC.cpp[m
+[1mindex 57eda18c2..8b6d3eb5a 100644[m
+[1m--- a/clang/lib/Sema/SemaObjC.cpp[m
+[1m+++ b/clang/lib/Sema/SemaObjC.cpp[m
+[36m@@ -14,6 +14,7 @@[m
+ #include "clang/AST/ASTMutationListener.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+ #include "clang/AST/StmtObjC.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/Basic/DiagnosticSema.h"[m
+ #include "clang/Lex/Preprocessor.h"[m
+ #include "clang/Sema/Attr.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaOpenMP.cpp b/clang/lib/Sema/SemaOpenMP.cpp[m
+[1mindex b83b2b12f..6e3e26961 100644[m
+[1m--- a/clang/lib/Sema/SemaOpenMP.cpp[m
+[1m+++ b/clang/lib/Sema/SemaOpenMP.cpp[m
+[36m@@ -18,6 +18,7 @@[m
+ #include "clang/AST/ASTMutationListener.h"[m
+ #include "clang/AST/CXXInheritance.h"[m
+ #include "clang/AST/Decl.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DeclCXX.h"[m
+ #include "clang/AST/DeclOpenMP.h"[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaStmt.cpp b/clang/lib/Sema/SemaStmt.cpp[m
+[1mindex 947651d51..f9b13ccb8 100644[m
+[1m--- a/clang/lib/Sema/SemaStmt.cpp[m
+[1m+++ b/clang/lib/Sema/SemaStmt.cpp[m
+[36m@@ -16,6 +16,7 @@[m
+ #include "clang/AST/CXXInheritance.h"[m
+ #include "clang/AST/CharUnits.h"[m
+ #include "clang/AST/DeclObjC.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/DynamicRecursiveASTVisitor.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+[1mdiff --git a/clang/lib/Sema/SemaStmtAttr.cpp b/clang/lib/Sema/SemaStmtAttr.cpp[m
+[1mindex 422d8abc1..3d44d42df 100644[m
+[1m--- a/clang/lib/Sema/SemaStmtAttr.cpp[m
+[1m+++ b/clang/lib/Sema/SemaStmtAttr.cpp[m
+[36m@@ -12,6 +12,7 @@[m
+ [m
+ #include "clang/AST/ASTContext.h"[m
+ #include "clang/AST/EvaluatedExprVisitor.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/Basic/TargetInfo.h"[m
+ #include "clang/Sema/DelayedDiagnostic.h"[m
+ #include "clang/Sema/ParsedAttr.h"[m
+[1mdiff --git a/clang/lib/Serialization/ASTReaderStmt.cpp b/clang/lib/Serialization/ASTReaderStmt.cpp[m
+[1mindex 990235a31..1a9482f23 100644[m
+[1m--- a/clang/lib/Serialization/ASTReaderStmt.cpp[m
+[1m+++ b/clang/lib/Serialization/ASTReaderStmt.cpp[m
+[36m@@ -22,6 +22,7 @@[m
+ #include "clang/AST/DeclTemplate.h"[m
+ #include "clang/AST/DeclarationName.h"[m
+ #include "clang/AST/DependenceFlags.h"[m
+[32m+[m[32m#include "clang/AST/DeferStmt.h"[m
+ #include "clang/AST/Expr.h"[m
+ #include "clang/AST/ExprCXX.h"[m
+ #include "clang/AST/ExprObjC.h"[m

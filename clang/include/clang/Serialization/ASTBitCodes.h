@@ -1576,6 +1576,9 @@ enum StmtCode {
   /// A WhileStmt record.
   STMT_WHILE,
 
+  /// A DeferStmt record.
+  STMT_DEFER,
+
   /// A DoStmt record.
   STMT_DO,
 

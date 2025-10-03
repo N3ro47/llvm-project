@@ -12904,6 +12904,19 @@ def err_acc_update_as_body
     : Error<"OpenACC 'update' construct may not appear in place of the "
             "statement following a%select{n if statement| while statement| do "
             "statement| switch statement| label statement}0">;
+def err_defer_outside_function : Error<
+  "defer statement can only be used within a function body">;
+
+def err_defer_prohibits_return : Error<
+  "'return' statement not allowed in a defer statement">;
+
+def err_defer_prohibits_break : Error<
+  "'break' statement not allowed in a defer statement">;
+  
+def err_defer_prohibits_continue : Error<
+  "'continue' statement not allowed in a defer statement">;
+
+def err_defer_prohibits_goto : Error< "'goto' statement not allowed in a defer statement">;
 
 // AMDGCN builtins diagnostics
 def err_amdgcn_global_load_lds_size_invalid_value : Error<"invalid size value">;

@@ -14,6 +14,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -380,6 +381,12 @@ void StmtPrinter::VisitWhileStmt(WhileStmt *Node) {
     PrintExpr(Node->getCond());
   OS << ")" << NL;
   PrintStmt(Node->getBody());
+}
+
+void StmtPrinter::VisitDeferStmt(DeferStmt *Node) {
+  Indent() << "defer ";
+  PrintStmt(Node->getBody());
+  OS << ";";
 }
 
 void StmtPrinter::VisitDoStmt(DoStmt *Node) {

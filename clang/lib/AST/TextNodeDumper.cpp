@@ -1391,6 +1391,10 @@ void TextNodeDumper::VisitSwitchStmt(const SwitchStmt *Node) {
     OS << " has_var";
 }
 
+void TextNodeDumper::VisitDeferStmt(const DeferStmt *Node) {
+  VisitStmt(Node);
+}
+
 void TextNodeDumper::VisitWhileStmt(const WhileStmt *Node) {
   if (Node->hasVarStorage())
     OS << " has_var";

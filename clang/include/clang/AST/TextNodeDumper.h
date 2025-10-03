@@ -23,6 +23,7 @@
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/TemplateArgumentVisitor.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLocVisitor.h"
 #include "clang/AST/TypeVisitor.h"
@@ -258,6 +259,7 @@ public:
   void VisitSwitchStmt(const SwitchStmt *Node);
   void VisitWhileStmt(const WhileStmt *Node);
   void VisitLabelStmt(const LabelStmt *Node);
+  void VisitDeferStmt(const DeferStmt *Node);
   void VisitGotoStmt(const GotoStmt *Node);
   void VisitCaseStmt(const CaseStmt *Node);
   void VisitReturnStmt(const ReturnStmt *Node);

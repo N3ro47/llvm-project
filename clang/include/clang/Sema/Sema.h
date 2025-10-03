@@ -926,6 +926,22 @@ public:
     Sema &S;
   };
 
+  /// RAII object to handle the state changes required when parsing a defer
+  /// statement body.
+  class DeferStmtScope {
+    Sema &S;
+    unsigned PrevValue;
+
+  public:
+    DeferStmtScope(Sema &S) : S(S), PrevValue(S.InDeferStmtCount) {
+      S.InDeferStmtCount++;
+    }
+
+    ~DeferStmtScope() {
+      S.InDeferStmtCount = PrevValue;
+    }
+  };
+
   /// An RAII helper that pops function a function scope on exit.
   struct FunctionScopeRAII {
     Sema &S;
@@ -9773,6 +9789,7 @@ public:
   /// This flag is used to avoid building recovery call expressions
   /// if Sema is already doing so, which would cause infinite recursions.
   bool IsBuildingRecoveryCallExpr;
+  unsigned InDeferStmtCount;
 
   enum OverloadKind {
     /// This is a legitimate overload: the existing declarations are
@@ -10663,6 +10680,8 @@ public:
 
   StmtResult ActOnExprStmt(ExprResult Arg, bool DiscardedValue = true);
   StmtResult ActOnExprStmtError();
+
+  StmtResult ActOnDeferStmt(SourceLocation DeferLoc, Stmt *Body);
 
   StmtResult ActOnNullStmt(SourceLocation SemiLoc,
                            bool HasLeadingEmptyMacro = false);

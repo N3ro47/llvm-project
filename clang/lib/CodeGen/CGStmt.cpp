@@ -18,6 +18,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Stmt.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticSema.h"
@@ -156,6 +157,7 @@ void CodeGenFunction::EmitStmt(const Stmt *S, ArrayRef<const Attr *> Attrs) {
 
   case Stmt::IfStmtClass:      EmitIfStmt(cast<IfStmt>(*S));              break;
   case Stmt::WhileStmtClass:   EmitWhileStmt(cast<WhileStmt>(*S), Attrs); break;
+  case Stmt::DeferStmtClass:   EmitDeferStmt(cast<DeferStmt>(*S));        break;
   case Stmt::DoStmtClass:      EmitDoStmt(cast<DoStmt>(*S), Attrs);       break;
   case Stmt::ForStmtClass:     EmitForStmt(cast<ForStmt>(*S), Attrs);     break;
 
@@ -1167,6 +1169,24 @@ void CodeGenFunction::EmitWhileStmt(const WhileStmt &S,
     ConvergenceTokenStack.pop_back();
 }
 
+void CodeGenFunction::EmitDeferStmt(const DeferStmt &S) {
+
+  struct DeferCleanup final : EHScopeStack::Cleanup {
+    const Stmt *Body;
+
+    DeferCleanup(const Stmt *Body) : Body(Body) {}
+
+    void Emit(CodeGenFunction &CGF, Flags) override {
+      CGF.EmitStmt(Body);
+    }
+  };
+
+  // PATTERN: Use the EHStack to schedule the cleanup.
+  // We explicitly tell pushCleanup to create a DeferCleanup object.
+  // - The first argument, NormalCleanup, is the *kind* of cleanup.
+  // - The second argument, S.getBody(), is passed to the DeferCleanup constructor.
+  EHStack.pushCleanup<DeferCleanup>(NormalCleanup, S.getBody());
+}
 void CodeGenFunction::EmitDoStmt(const DoStmt &S,
                                  ArrayRef<const Attr *> DoAttrs) {
   JumpDest LoopExit = getJumpDestInCurrentScope("do.end");

@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Expr.h"
@@ -273,6 +274,10 @@ void StmtProfiler::VisitDefaultStmt(const DefaultStmt *S) {
 void StmtProfiler::VisitLabelStmt(const LabelStmt *S) {
   VisitStmt(S);
   VisitDecl(S->getDecl());
+}
+
+void StmtProfiler::VisitDeferStmt(const DeferStmt *S) {
+  VisitStmt(S);
 }
 
 void StmtProfiler::VisitAttributedStmt(const AttributedStmt *S) {

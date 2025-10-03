@@ -13,6 +13,7 @@
 #include "CGCleanup.h"
 #include "CodeGenFunction.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/StmtCXX.h"
 #include "clang/AST/StmtVisitor.h"
 

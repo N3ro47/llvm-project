@@ -16,6 +16,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/ExprOpenMP.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Lex/Token.h"
@@ -270,6 +271,13 @@ void ASTStmtWriter::VisitWhileStmt(WhileStmt *S) {
   Record.AddSourceLocation(S->getLParenLoc());
   Record.AddSourceLocation(S->getRParenLoc());
   Code = serialization::STMT_WHILE;
+}
+
+void ASTStmtWriter::VisitDeferStmt(DeferStmt *S) {
+  VisitStmt(S);
+
+  Record.AddSourceLocation(S->getDeferLoc());
+  Code = serialization::STMT_DEFER;
 }
 
 void ASTStmtWriter::VisitDoStmt(DoStmt *S) {

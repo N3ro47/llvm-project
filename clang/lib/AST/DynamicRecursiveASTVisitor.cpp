@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/AST/DynamicRecursiveASTVisitor.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 
 using namespace clang;
