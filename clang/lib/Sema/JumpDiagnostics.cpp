@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeferStmt.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/StmtCXX.h"
@@ -397,6 +398,32 @@ void JumpScopeChecker::BuildScopeInformation(Stmt *S,
       Scopes.push_back(GotoScope(ParentScope, Diag, 0, IS->getBeginLoc()));
       BuildScopeInformation(Else, NewParentScope);
     }
+    return;
+  }
+  case Stmt::CompoundStmtClass: {
+    CompoundStmt *CS = cast<CompoundStmt>(S);
+    for (auto *Sub : CS->body()) {
+      if (auto *DS = dyn_cast<DeferStmt>(Sub)) {
+        // Recurse to handle jumps WITHIN the defer block
+        BuildScopeInformation(Sub, ParentScope);
+        // Push scope to protect jumping OVER the defer block
+        Scopes.push_back(GotoScope(ParentScope, diag::note_protected_by_defer, 0, DS->getBeginLoc()));
+        ParentScope = Scopes.size() - 1;
+        continue;
+      }
+      BuildScopeInformation(Sub, ParentScope);
+    }
+    return;
+  }
+
+  case Stmt::DeferStmtClass: {
+    DeferStmt *DS = cast<DeferStmt>(S);
+    unsigned NewParentScope = Scopes.size();
+    Scopes.push_back(GotoScope(ParentScope,
+			       diag::err_jump_into_defer,
+			       0,
+			       DS->getBeginLoc()));
+    BuildScopeInformation(DS->getBody(), NewParentScope);
     return;
   }
 

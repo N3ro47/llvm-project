@@ -75,6 +75,8 @@ StmtResult Sema::ActOnDeferStmt(SourceLocation DeferLoc, Stmt *Body) {
     Diag(DeferLoc, diag::err_defer_outside_function);
     return StmtError();
   }
+
+  setFunctionHasBranchProtectedScope();
   
   if (InDeferStmtCount > 0) {
     Diag(DeferLoc, diag::err_defer_in_defer);

@@ -12918,6 +12918,9 @@ def err_defer_prohibits_continue : Error<
 
 def err_defer_prohibits_goto : Error< "'goto' statement not allowed in a defer statement">;
 
+def err_jump_into_defer : Error<"cannot jump into defer statement">;
+def note_protected_by_defer : Note<"jump bypasses defer statement">;
+
 def err_defer_in_defer : Error<
   "a 'defer' statement is not allowed inside another 'defer' statement">;
 // AMDGCN builtins diagnostics
